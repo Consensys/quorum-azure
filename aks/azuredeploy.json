@@ -1,0 +1,434 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.1",
+  "parameters": {
+    "clusterName": {
+      "type": "string",
+      "defaultValue":"besu",
+      "metadata": {
+        "description": "The name of the AKS Cluster."
+      }
+    },
+    "location": {
+      "type": "string",
+      "defaultValue": "",
+      "metadata": {
+        "description": "The location of the AKS Cluster."
+      }
+    },
+    "nodeCount": {
+      "type": "int",
+      "defaultValue": 3,
+      "metadata": {
+        "description": "The number of nodes for the cluster."
+      },
+      "minValue": 1,
+      "maxValue": 50
+    },
+    "nodeVMSize": {
+      "type": "string",
+      "defaultValue": "Standard_DS2_v2",
+      "metadata": {
+        "description": "The type of the Virtual Machine."
+      }
+    },
+    "nodeDiskSizeGB": {
+      "type": "int",
+      "defaultValue": 30,
+      "metadata": {
+        "description": "Disk size (in GB) to provision for each of the agent pool nodes. This value ranges from default of 30 to max of 1023."
+      },
+      "minValue": 30,
+      "maxValue": 1023
+    },
+    "helmVMSize": {
+      "type": "string",
+      "defaultValue": "Standard_B2s",
+      "metadata": {
+        "description": "The type of the Virtual Machine."
+      }
+    },
+    "adminUsername": {
+      "type": "string",
+      "metadata": {
+        "description": "User name for the Linux Virtual Machines."
+      }
+    },
+    "adminSSHPublicKey": {
+      "type": "string",
+      "metadata": {
+        "description": "Configure all linux machines with the SSH RSA public key string. Your key should include three parts, for example 'ssh-rsa AAAAB...snip...UcyupgH azureuser@linuxvm'"
+      }
+    },
+    "vnetAddressPrefix": {
+      "defaultValue": "10.1.0.0/16",
+      "metadata": {
+        "description": "VNET Address Prefix"
+      },
+      "type": "string"
+    },
+    "subnetAddressPrefix": {
+      "defaultValue": "10.1.0.0/24",
+      "metadata": {
+        "description": "Subnet Address Prefix"
+      },
+      "type": "string"
+    },
+    "servicePrincipalClientId": {
+      "metadata": {
+        "description": "Service Principal Client ID. This is the appId of your Azure AD Service Principal."
+      },
+      "type": "securestring"
+    },
+    "servicePrincipalClientSecret": {
+      "metadata": {
+        "description": "Service Principal Client Secret. This is the password when creating your Azure AD Service Principal."
+      },
+      "type": "securestring"
+    },
+    "servicePrincipalTenantId": {
+      "metadata": {
+        "description": "Service Principal TenantId. This is the tenant when creating your Azure AD Service Principal."
+      },
+      "type": "securestring"
+    },
+    "servicePrincipalObjectId": {
+      "metadata": {
+        "description": "Service Principal ObjectId. This is the object id of the associated application when creating an AD Service Principal."
+      },
+      "type": "securestring"
+    }
+  },
+  "variables": {
+    "apiVersionDeployments": "2018-05-01",
+    "apiVersionPublicIPAddresses": "2018-11-01",
+    "apiVersionNetworkSecurityGroups": "2018-11-01",
+    "apiVersionNetworkInterfaces": "2018-11-01",
+    "apiVersionVirtualNetworks": "2018-11-01",
+    "apiVersionVirtualMachine": "2019-03-01",
+    "apiVersionStorageAccounts": "2019-04-01",
+    "apiVersionManangedClusters": "2019-08-01",
+    "kubernetesVersion": "1.14.8",
+    "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
+    "namePrefix": "[toLower(substring(concat(parameters('clusterName'), uniqueString(resourceGroup().id)), 0, 9))]",
+    "dnsName": "[variables('namePrefix')]",
+    "helmVmName": "[concat(variables('namePrefix'), '-helm')]",
+    "nsgName": "[concat(variables('namePrefix'), '-nsg')]",
+    "publicIpAddressName": "[concat(variables('namePrefix'), '-pip')]",
+    "nicName": "[concat(variables('namePrefix'), '-nic')]",
+    "vNetName": "[concat(variables('namePrefix'), '-vnet')]",
+    "subnetName": "[concat(variables('namePrefix'), '-subnet')]",
+    "aksClusterAdminRoleId": "0ab0b1a8-8aac-4efd-b8c2-3ee1fb270be8",
+    "aksClusterAdminRoleAssignmentName": "[concat(variables('namePrefix'), '-ra-aks-cluster-admin')]",
+    "networkContributorRoleId": "4d97b98b-1d4f-4787-a291-c67834d212e7",
+    "networkContributorRoleAssignmentName": "[concat(variables('namePrefix'), '-ra-network-contributor')]",
+
+    "vNet": {
+      "name": "[variables('vNetName')]",
+      "addressSpacePrefix": "[parameters('vnetAddressPrefix')]"
+    },
+    "subnetPropertiesArray": [
+      {
+        "name": "[variables('subnetName')]",
+        "properties": {
+          "addressPrefix": "[parameters('subnetAddressPrefix')]"
+        }
+      }
+    ],
+    "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vNet').name, variables('subnetName'))]",
+    "ubuntuImage": {
+      "publisher": "Canonical",
+      "offer": "UbuntuServer",
+      "sku": "18.04-LTS",
+      "version": "latest"
+    },
+    "publicTrackingGuid": "d03c1f82-a7d4-5f2c-80e0-abdbd582364e"
+  },
+  "resources": [
+    {
+      "apiVersion": "[variables('apiVersionDeployments')]",
+      "name": "[concat('pid-', variables('publicTrackingGuid'))]",
+      "type": "Microsoft.Resources/deployments",
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "resources": []
+        }
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionPublicIPAddresses')]",
+      "type": "Microsoft.Network/publicIPAddresses",
+      "name": "[variables('publicIpAddressName')]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "publicIPAllocationMethod": "Dynamic",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('dnsName')]"
+        }
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionNetworkSecurityGroups')]",
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "name": "[variables('nsgName')]",
+      "location": "[parameters('location')]",
+      "tags": {
+        "displayName": "Network Security Group"
+      },
+      "properties": {
+        "securityRules": [
+          {
+            "name": "allow-ssh",
+            "properties": {
+              "description": "Allow SSH",
+              "protocol": "TCP",
+              "sourcePortRange": "*",
+              "destinationPortRange": "22",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*",
+              "access": "Allow",
+              "priority": 320,
+              "direction": "Inbound"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionNetworkInterfaces')]",
+      "type": "Microsoft.Network/networkInterfaces",
+      "name": "[variables('nicName')]",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]",
+        "[resourceId('Microsoft.Network/publicIpAddresses', variables('publicIpAddressName'))]",
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[variables('subnetRef')]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpAddressName'))]"
+              }
+            }
+          }
+        ],
+        "networkSecurityGroup": {
+          "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+        }
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionVirtualNetworks')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('vNet').name]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vNet').addressSpacePrefix]"
+          ]
+        },
+        "subnets": "[variables('subnetPropertiesArray')]"
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionDeployments')]",
+      "name": "[variables('networkContributorRoleAssignmentName')]",
+      "type": "Microsoft.Resources/deployments",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Network/virtualNetworks/subnets/providers/roleAssignments",
+              "apiVersion": "2017-09-01",
+              "name": "[concat(variables('vNetName'), '/', variables('subnetName'), '/Microsoft.Authorization/', guid(resourceGroup().id, deployment().name, '-spncra'))]",
+              "properties": {
+                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', variables('networkContributorRoleId'))]",
+                "principalId": "[parameters('servicePrincipalObjectId')]",
+                "scope": "[variables('subnetRef')]"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionManangedClusters')]",
+      "name": "[parameters('clusterName')]",
+      "type":  "Microsoft.ContainerService/managedClusters",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]",
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]",
+        "[variables('networkContributorRoleAssignmentName')]"
+      ],
+      "properties": {
+        "kubernetesVersion": "[variables('kubernetesVersion')]",
+        "dnsPrefix": "[variables('dnsName')]",
+        "addonProfiles": {
+          "httpApplicationRouting": {
+            "enabled": true
+          }
+        },
+        "agentPoolProfiles": [
+          {
+            "name": "agentpool",
+            "osDiskSizeGB": "[parameters('nodeDiskSizeGB')]",
+            "count": "[parameters('nodeCount')]",
+            "vmSize": "[parameters('nodeVMSize')]",
+            "vnetSubnetID": "[variables('subnetRef')]",
+            "enableNodePublicIP": false,
+            "osType": "Linux",
+            "storageProfile": "ManagedDisks"
+          }
+        ],
+        "linuxProfile": {
+          "adminUsername": "[parameters('adminUsername')]",
+          "ssh": {
+            "publicKeys": [
+              {
+                "keyData": "[parameters('adminSSHPublicKey')]"
+              }
+            ]
+          }
+        },
+        "servicePrincipalProfile": {
+          "clientId": "[parameters('servicePrincipalClientId')]",
+          "Secret": "[parameters('servicePrincipalClientSecret')]"
+        }
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionDeployments')]",
+      "name": "[variables('aksClusterAdminRoleAssignmentName')]",
+      "type": "Microsoft.Resources/deployments",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]",
+        "[resourceId('Microsoft.ContainerService/managedClusters', parameters('clusterName'))]"
+      ],
+      "properties": {
+        "mode": "Incremental",
+        "template": {
+          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+          "contentVersion": "1.0.0.0",
+          "parameters": {},
+          "variables": {},
+          "resources": [
+            {
+              "type": "Microsoft.Authorization/roleAssignments",
+              "apiVersion": "2017-09-01",
+              "name": "[guid(resourceGroup().id, deployment().name, '-spaksra')]",
+              "properties": {
+                "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', variables('aksClusterAdminRoleId'))]",
+                "principalId": "[parameters('servicePrincipalObjectId')]",
+                "scope": "[resourceGroup().id]"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionVirtualMachine')]",
+      "name": "[variables('helmVmName')]",
+      "location": "[parameters('location')]",
+      "type": "Microsoft.Compute/virtualMachines",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]",
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]",
+        "[resourceId('Microsoft.ContainerService/managedClusters', parameters('clusterName'))]",
+        "[variables('aksClusterAdminRoleAssignmentName')]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "[parameters('helmVMSize')]"
+        },
+        "osProfile": {
+          "computerName": "[variables('helmVmName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "linuxConfiguration": {
+            "disablePasswordAuthentication": true,
+            "ssh": {
+              "publicKeys": [
+                {
+                  "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                  "keyData": "[parameters('adminSSHPublicKey')]"
+                }
+              ]
+            }
+          }
+        },
+        "storageProfile": {
+          "imageReference": "[variables('ubuntuImage')]",
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Premium_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', concat(variables('nicName')))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "apiVersion": "[variables('apiVersionVirtualMachine')]",
+      "name": "[concat(variables('helmVmName'),'/userdata')]",
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "location": "[parameters('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.ContainerService/managedClusters', parameters('clusterName'))]",
+        "[variables('aksClusterAdminRoleAssignmentName')]",
+        "[resourceId('Microsoft.Compute/virtualMachines/', variables('helmVmName'))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.Extensions",
+        "type": "CustomScript",
+        "typeHandlerVersion": "2.0",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "https://raw.githubusercontent.com/PegasysEng/besu-azure/master/aks/config.sh"
+          ]
+        },
+        "protectedSettings": {
+          "commandToExecute": "[concat('/bin/bash config.sh \"', parameters('adminUsername'), '\" \"',parameters('servicePrincipalClientId'), '\" \"',parameters('servicePrincipalClientSecret'), '\" \"',parameters('servicePrincipalTenantId'), '\" \"',parameters('clusterName'), '\"')]"
+        }
+      }
+    }
+
+  ],
+  "outputs": {
+    "controlPlaneFQDN": {
+      "type": "string",
+      "value": "[reference(concat('Microsoft.ContainerService/managedClusters/', parameters('clusterName'))).fqdn]"
+    },
+    "dnsName": {
+      "type": "string",
+      "value": "[reference(variables('publicIpAddressName')).dnsSettings.fqdn]"
+    }
+  }
+}
