@@ -15,7 +15,7 @@ az deployment create \
 
 2. Don't create more than one AKS cluster in the same subnet.
 3. AKS clusters may **not** use _169.254.0.0/16, 172.30.0.0/16, 172.31.0.0/16, or 192.0.2.0/24_ for the Kubernetes service address range.
-4. To interact with Azure APIs, an AKS cluster requires an Azure Active Directory (AD) [Service Principal](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). The service principal is needed to dynamically create and manage other Azure resources such as an Azure load balancer, container registry (ACR) etc
+4. To interact with Azure APIs, an AKS cluster requires an Azure Active Directory (AD) [Service Principal](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). The Service Principal (SP) is needed to dynamically create and manage other Azure resources such as an Azure load balancer, container registry (ACR) etc
 
 Unless specified, the SP is assigned the 'Contributor' role by default - this has full permissions to read and write to your Azure account which isn't ideal from a security standpoint.
 Instead, create a new SP without any roles assigned to it. The template will then append the necessary permissions.
@@ -54,6 +54,24 @@ For this deployment we will provision (to your SP) and use the following permiss
 
 ## Description
 This deployment template will create an AKS cluster for you in Azure, as well as a VM to run helm from to provision the cluster. Part of the process is that it will install Helm3 and the [Besu Helm charts](https://github.com/PegaSysEng/besu-kubernetes) in the home directory of the VM.
+
+## Deployment
+
+* Navigate to the [Azure portal](https://portal.azure.com), click `+ Create a resource` in the upper left corner.
+* Search for `Template deployment (deploy using custom templates)` and click Create.
+* Click on `Build your own template in the editor`
+* Remove the contents (json) in the editor and paste in the contents of `azuredeploy.json`
+* Click Save
+* The template will be parsed and a UI will be shown to allow you to input parameters to provision
+
+Alternatively use the CLI
+```bash
+az deployment create \
+  --name besu-k8s \
+  --location eastus \
+  --template-file ./azuredeploy.json \
+  --parameters clusterName=besu location=westus adminUsername=YOUR_UNAME  adminSSHPublicKey=YOUR_SSH_PUBKEY servicePrincipalClientId=YOUR_SPCID servicePrincipalClientSecret=YOUR_SPCS servicePrincipalTenantId=YOUR_SPTID servicePrincipalObjectId= SPOID
+```
 
 Once the deployment has completed, please ssh into the Helm VM (DNS address can be found in the outputs of the template), and use the credentials you supplied during provisioning.
 
