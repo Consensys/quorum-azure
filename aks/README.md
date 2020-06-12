@@ -8,11 +8,6 @@ az deployment create \
   --template-file ./resource-group.json
 ```
 
-az deployment create \
-  --name joshua-rg8 \
-  --location eastus \
-  --template-file ./resource-group.json
-
 2. Don't create more than one AKS cluster in the same subnet.
 3. AKS clusters may **not** use _169.254.0.0/16, 172.30.0.0/16, 172.31.0.0/16, or 192.0.2.0/24_ for the Kubernetes service address range.
 4. To interact with Azure APIs, an AKS cluster requires an Azure Active Directory (AD) [Service Principal](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal). The Service Principal (SP) is needed to dynamically create and manage other Azure resources such as an Azure load balancer, container registry (ACR) etc

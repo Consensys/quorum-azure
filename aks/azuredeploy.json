@@ -108,7 +108,7 @@
     "apiVersionVirtualMachine": "2019-03-01",
     "apiVersionStorageAccounts": "2019-04-01",
     "apiVersionManangedClusters": "2019-08-01",
-    "kubernetesVersion": "1.14.8",
+    "kubernetesVersion": "1.18.2",
     "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
     "namePrefix": "[toLower(substring(concat(parameters('clusterName'), uniqueString(resourceGroup().id)), 0, 9))]",
     "dnsName": "[variables('namePrefix')]",
@@ -159,8 +159,25 @@
       }
     },
     {
+      "apiVersion": "[variables('apiVersionVirtualNetworks')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('vNet').name]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vNet').addressSpacePrefix]"
+          ]
+        },
+        "subnets": "[variables('subnetPropertiesArray')]"
+      }
+    },
+    {
       "apiVersion": "[variables('apiVersionPublicIPAddresses')]",
       "type": "Microsoft.Network/publicIPAddresses",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]"
+      ],
       "name": "[variables('publicIpAddressName')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -173,6 +190,9 @@
     {
       "apiVersion": "[variables('apiVersionNetworkSecurityGroups')]",
       "type": "Microsoft.Network/networkSecurityGroups",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]"
+      ],
       "name": "[variables('nsgName')]",
       "location": "[parameters('location')]",
       "tags": {
@@ -228,20 +248,6 @@
       }
     },
     {
-      "apiVersion": "[variables('apiVersionVirtualNetworks')]",
-      "type": "Microsoft.Network/virtualNetworks",
-      "name": "[variables('vNet').name]",
-      "location": "[parameters('location')]",
-      "properties": {
-        "addressSpace": {
-          "addressPrefixes": [
-            "[variables('vNet').addressSpacePrefix]"
-          ]
-        },
-        "subnets": "[variables('subnetPropertiesArray')]"
-      }
-    },
-    {
       "apiVersion": "[variables('apiVersionDeployments')]",
       "name": "[variables('networkContributorRoleAssignmentName')]",
       "type": "Microsoft.Resources/deployments",
@@ -294,7 +300,6 @@
             "osDiskSizeGB": "[parameters('nodeDiskSizeGB')]",
             "count": "[parameters('nodeCount')]",
             "vmSize": "[parameters('nodeVMSize')]",
-            "vnetSubnetID": "[variables('subnetRef')]",
             "enableNodePublicIP": false,
             "osType": "Linux",
             "storageProfile": "ManagedDisks"
