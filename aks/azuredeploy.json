@@ -108,7 +108,7 @@
     "apiVersionVirtualMachine": "2019-03-01",
     "apiVersionStorageAccounts": "2019-04-01",
     "apiVersionManangedClusters": "2019-08-01",
-    "kubernetesVersion": "1.18.2",
+    "kubernetesVersion": "1.15.10",
     "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
     "namePrefix": "[toLower(substring(concat(parameters('clusterName'), uniqueString(resourceGroup().id)), 0, 9))]",
     "dnsName": "[variables('namePrefix')]",
