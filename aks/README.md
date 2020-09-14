@@ -71,6 +71,9 @@ az deployment create \
 Once the deployment has completed, please ssh into the Helm VM (DNS address can be found in the outputs of the template), and use the credentials you supplied during provisioning.
 
 To connect to the Kubernetes dashboard, please follow the steps under 'View Kubernetes dashboard' shown in the settings of your cluster in the [Azure Portal](https://portal.azure.com/) 
+```
+az aks browse --resource-group YOUR_RG --name YOUR_AKS_CLUSTER_NAME
+```
 
 Pick any of the chart solutions and deploy to the cluster. For example say you pick 'ibft2':
 
@@ -116,5 +119,17 @@ curl -X POST -H "Content-Type: application/json" --data '{ "query": "{syncing{st
     "syncing" : null
   }
 }
+
+## Azure Deployment with CNI
+By default, AKS clusters use **kubenet**, and a virtual network and subnet are created for you. With kubenet, nodes get an IP address from a virtual network subnet. Network address translation (NAT) is then configured on the nodes, and pods receive an IP address "hidden" behind the node IP. This approach reduces the number of IP addresses that you need to reserve in your network space for pods to use, however places constraints on what can connect to the nodes from outside the cluster (eg on prem nodes)
+
+With Azure Container Networking Interface (CNI), every pod gets an IP address from the subnet and can be accessed directly. These IP addresses must be unique across your network space, and must be planned in advance. Each node has a configuration parameter for the maximum number of pods that it supports. The equivalent number of IP addresses per node are then reserved up front for that node. This approach requires more planning, and can leads to IP address exhaustion as your application demands grow, however makes it easier for external nodes to connect to your cluster.
+
+![Image aks_cni](./cni/aks_cni.png)
+
+
+Please look at  the `./aks/cni` folder for an example setup. To run this example, you need to *first* deploy the VNet and then deploy the aks cluster. What you see is the VNet that gets deployed first which creates 'n' subnets, the first used to the k8s cluster and the rest for normal business applications. If you have existing VNets, you can easily connect to the VNet with the k8s cluster by using [VNet Peering](https://docs.microsoft.com/en-us/azure/virtual-network/virtual-network-peering-overview)
+
+
 
 

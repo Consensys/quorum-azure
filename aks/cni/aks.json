@@ -11,9 +11,30 @@
     },
     "location": {
       "type": "string",
-      "defaultValue": "",
+      "defaultValue": "[resourceGroup().location]",
       "metadata": {
         "description": "The location of the AKS Cluster."
+      }
+    },
+    "vnetName": {
+      "type": "string",
+      "defaultValue": "vnet",
+      "metadata": {
+        "description": "VNET to use"
+      }
+    },
+    "subnet1Name": {
+      "type": "string",
+      "defaultValue": "subnet1",
+      "metadata": {
+        "description": "Subnet 1 to use for aks"
+      }
+    },
+    "subnet2Name": {
+      "type": "string",
+      "defaultValue": "subnet2",
+      "metadata": {
+        "description": "Subnet 2 to use for helm"
       }
     },
     "nodeCount": {
@@ -60,20 +81,6 @@
         "description": "Configure all linux machines with the SSH RSA public key string. Your key should include three parts, for example 'ssh-rsa AAAAB...snip...UcyupgH azureuser@linuxvm'"
       }
     },
-    "vnetAddressPrefix": {
-      "defaultValue": "10.1.0.0/16",
-      "metadata": {
-        "description": "VNET Address Prefix"
-      },
-      "type": "string"
-    },
-    "subnetAddressPrefix": {
-      "defaultValue": "10.1.0.0/24",
-      "metadata": {
-        "description": "Subnet Address Prefix"
-      },
-      "type": "string"
-    },
     "servicePrincipalClientId": {
       "metadata": {
         "description": "Service Principal Client ID. This is the appId of your Azure AD Service Principal."
@@ -104,10 +111,9 @@
     "apiVersionPublicIPAddresses": "2018-11-01",
     "apiVersionNetworkSecurityGroups": "2018-11-01",
     "apiVersionNetworkInterfaces": "2018-11-01",
-    "apiVersionVirtualNetworks": "2018-11-01",
     "apiVersionVirtualMachine": "2019-03-01",
     "apiVersionStorageAccounts": "2019-04-01",
-    "apiVersionManangedClusters": "2019-08-01",
+    "apiVersionManangedClusters": "2019-11-01",
     "kubernetesVersion": "1.17.9",
     "sshKeyPath": "[concat('/home/',parameters('adminUsername'),'/.ssh/authorized_keys')]",
     "namePrefix": "[toLower(substring(concat(parameters('clusterName'), uniqueString(resourceGroup().id)), 0, 9))]",
@@ -116,26 +122,12 @@
     "nsgName": "[concat(variables('namePrefix'), '-nsg')]",
     "publicIpAddressName": "[concat(variables('namePrefix'), '-pip')]",
     "nicName": "[concat(variables('namePrefix'), '-nic')]",
-    "vNetName": "[concat(variables('namePrefix'), '-vnet')]",
-    "subnetName": "[concat(variables('namePrefix'), '-subnet')]",
     "aksClusterAdminRoleId": "0ab0b1a8-8aac-4efd-b8c2-3ee1fb270be8",
     "aksClusterAdminRoleAssignmentName": "[concat(variables('namePrefix'), '-ra-aks-cluster-admin')]",
     "networkContributorRoleId": "4d97b98b-1d4f-4787-a291-c67834d212e7",
     "networkContributorRoleAssignmentName": "[concat(variables('namePrefix'), '-ra-network-contributor')]",
-
-    "vNet": {
-      "name": "[variables('vNetName')]",
-      "addressSpacePrefix": "[parameters('vnetAddressPrefix')]"
-    },
-    "subnetPropertiesArray": [
-      {
-        "name": "[variables('subnetName')]",
-        "properties": {
-          "addressPrefix": "[parameters('subnetAddressPrefix')]"
-        }
-      }
-    ],
-    "subnetRef": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vNet').name, variables('subnetName'))]",
+    "subnet1Ref": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnet1Name'))]",
+    "subnet2Ref": "[resourceId('Microsoft.Network/virtualNetworks/subnets', parameters('vnetName'), parameters('subnet2Name'))]",
     "ubuntuImage": {
       "publisher": "Canonical",
       "offer": "UbuntuServer",
@@ -146,38 +138,8 @@
   },
   "resources": [
     {
-      "apiVersion": "[variables('apiVersionDeployments')]",
-      "name": "[concat('pid-', variables('publicTrackingGuid'))]",
-      "type": "Microsoft.Resources/deployments",
-      "properties": {
-        "mode": "Incremental",
-        "template": {
-          "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
-          "contentVersion": "1.0.0.0",
-          "resources": []
-        }
-      }
-    },
-    {
-      "apiVersion": "[variables('apiVersionVirtualNetworks')]",
-      "type": "Microsoft.Network/virtualNetworks",
-      "name": "[variables('vNet').name]",
-      "location": "[parameters('location')]",
-      "properties": {
-        "addressSpace": {
-          "addressPrefixes": [
-            "[variables('vNet').addressSpacePrefix]"
-          ]
-        },
-        "subnets": "[variables('subnetPropertiesArray')]"
-      }
-    },
-    {
       "apiVersion": "[variables('apiVersionPublicIPAddresses')]",
       "type": "Microsoft.Network/publicIPAddresses",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]"
-      ],
       "name": "[variables('publicIpAddressName')]",
       "location": "[parameters('location')]",
       "properties": {
@@ -190,9 +152,6 @@
     {
       "apiVersion": "[variables('apiVersionNetworkSecurityGroups')]",
       "type": "Microsoft.Network/networkSecurityGroups",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]"
-      ],
       "name": "[variables('nsgName')]",
       "location": "[parameters('location')]",
       "tags": {
@@ -223,7 +182,6 @@
       "name": "[variables('nicName')]",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]",
         "[resourceId('Microsoft.Network/publicIpAddresses', variables('publicIpAddressName'))]",
         "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
       ],
@@ -234,7 +192,7 @@
             "properties": {
               "privateIPAllocationMethod": "Dynamic",
               "subnet": {
-                "id": "[variables('subnetRef')]"
+                "id": "[variables('subnet2Ref')]"
               },
               "publicIPAddress": {
                 "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpAddressName'))]"
@@ -251,9 +209,7 @@
       "apiVersion": "[variables('apiVersionDeployments')]",
       "name": "[variables('networkContributorRoleAssignmentName')]",
       "type": "Microsoft.Resources/deployments",
-      "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]"
-      ],
+      "dependsOn": [],
       "properties": {
         "mode": "Incremental",
         "template": {
@@ -265,11 +221,11 @@
             {
               "type": "Microsoft.Network/virtualNetworks/subnets/providers/roleAssignments",
               "apiVersion": "2017-09-01",
-              "name": "[concat(variables('vNetName'), '/', variables('subnetName'), '/Microsoft.Authorization/', guid(resourceGroup().id, deployment().name, '-spncra'))]",
+              "name": "[concat(parameters('vnetName'), '/', parameters('subnet1Name'), '/Microsoft.Authorization/', guid(resourceGroup().id, deployment().name, '-spncra'))]",
               "properties": {
                 "roleDefinitionId": "[resourceId('Microsoft.Authorization/roleDefinitions', variables('networkContributorRoleId'))]",
                 "principalId": "[parameters('servicePrincipalObjectId')]",
-                "scope": "[variables('subnetRef')]"
+                "scope": "[variables('subnet1Ref')]"
               }
             }
           ]
@@ -282,7 +238,6 @@
       "type":  "Microsoft.ContainerService/managedClusters",
       "location": "[parameters('location')]",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]",
         "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]",
         "[variables('networkContributorRoleAssignmentName')]"
       ],
@@ -298,8 +253,10 @@
           {
             "name": "agentpool",
             "osDiskSizeGB": "[parameters('nodeDiskSizeGB')]",
+            "vnetSubnetID": "[variables('subnet1Ref')]",
             "count": "[parameters('nodeCount')]",
             "vmSize": "[parameters('nodeVMSize')]",
+            "maxPods": 10,
             "enableNodePublicIP": false,
             "osType": "Linux",
             "storageProfile": "ManagedDisks"
@@ -318,6 +275,9 @@
         "servicePrincipalProfile": {
           "clientId": "[parameters('servicePrincipalClientId')]",
           "Secret": "[parameters('servicePrincipalClientSecret')]"
+        },
+        "networkProfile": {
+          "networkPlugin": "azure"
         }
       }
     },
@@ -326,7 +286,6 @@
       "name": "[variables('aksClusterAdminRoleAssignmentName')]",
       "type": "Microsoft.Resources/deployments",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]",
         "[resourceId('Microsoft.ContainerService/managedClusters', parameters('clusterName'))]"
       ],
       "properties": {
@@ -357,7 +316,6 @@
       "location": "[parameters('location')]",
       "type": "Microsoft.Compute/virtualMachines",
       "dependsOn": [
-        "[resourceId('Microsoft.Network/virtualNetworks', variables('vNet').name)]",
         "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]",
         "[resourceId('Microsoft.ContainerService/managedClusters', parameters('clusterName'))]",
         "[variables('aksClusterAdminRoleAssignmentName')]"
@@ -431,7 +389,7 @@
       "type": "string",
       "value": "[reference(concat('Microsoft.ContainerService/managedClusters/', parameters('clusterName'))).fqdn]"
     },
-    "dnsName": {
+    "helmDnsName": {
       "type": "string",
       "value": "[reference(variables('publicIpAddressName')).dnsSettings.fqdn]"
     }
