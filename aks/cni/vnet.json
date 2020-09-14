@@ -1,0 +1,106 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.1",
+  "parameters": {
+    "location": {
+      "type": "string",
+      "defaultValue": "[resourceGroup().location]",
+      "metadata": {
+        "description": "The location of the AKS Cluster."
+      }
+    },
+    "vnetName": {
+      "type": "string",
+      "defaultValue": "vnet",
+      "metadata": {
+        "description": "VNET name"
+      }
+    },
+    "vnetAddressPrefix": {
+      "defaultValue": "10.1.0.0/16",
+      "metadata": {
+        "description": "VNET Address Prefix"
+      },
+      "type": "string"
+    },
+    "subnet1Name": {
+      "type": "string",
+      "defaultValue": "subnet1",
+      "metadata": {
+        "description": "Subnet 1 Name"
+      }
+    },
+    "subnet1AddressPrefix": {
+      "defaultValue": "10.1.0.0/24",
+      "metadata": {
+        "description": "Subnet1 Address Prefix"
+      },
+      "type": "string"
+    },
+    "subnet2Name": {
+      "type": "string",
+      "defaultValue": "subnet2",
+      "metadata": {
+        "description": "Subnet 2 Name"
+      }
+    },
+    "subnet2AddressPrefix": {
+      "defaultValue": "10.1.1.0/24",
+      "metadata": {
+        "description": "Subnet2 Address Prefix"
+      },
+      "type": "string"
+    }
+  },
+  "variables": {
+    "apiVersionVirtualNetworks": "2020-05-01",
+    "vNet": {
+      "name": "[parameters('vnetName')]",
+      "addressSpacePrefix": "[parameters('vnetAddressPrefix')]"
+    }
+  },
+  "resources": [
+    {
+      "apiVersion": "[variables('apiVersionVirtualNetworks')]",
+      "type": "Microsoft.Network/virtualNetworks",
+      "name": "[variables('vNet').name]",
+      "location": "[parameters('location')]",
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "[variables('vNet').addressSpacePrefix]"
+          ]
+        }
+      },
+      "resources": [
+        {
+          "type": "subnets",
+          "apiVersion": "[variables('apiVersionVirtualNetworks')]",
+          "location": "[parameters('location')]",
+          "name": "[parameters('subnet1Name')]",
+          "dependsOn": [
+            "[variables('vNet').name]"
+          ],
+          "properties": {
+            "addressPrefix": "[parameters('subnet1AddressPrefix')]"
+          }
+        },
+        {
+          "type": "subnets",
+          "apiVersion": "[variables('apiVersionVirtualNetworks')]",
+          "location": "[parameters('location')]",
+          "name": "[parameters('subnet2Name')]",
+          "dependsOn": [
+            "[variables('vNet').name]",
+            "[parameters('subnet1Name')]"
+          ],
+          "properties": {
+            "addressPrefix": "[parameters('subnet2AddressPrefix')]"
+          }
+        }
+      ]
+    }
+
+  ],
+  "outputs": {}
+}
