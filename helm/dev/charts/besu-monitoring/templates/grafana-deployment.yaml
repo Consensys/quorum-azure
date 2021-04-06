@@ -49,6 +49,8 @@ spec:
               value: "password"
             - name: PROMETHEUS_SERVICE_HOST
               value: {{ template "besu-monitoring.fullname" . }}-prometheus
+            - name: PROMETHEUS_NAMESPACE
+              value: {{ .Release.Namespace }}      
           volumeMounts:
             - name: grafana-cm-datasources
               mountPath: /etc/grafana/provisioning/datasources/prometheus.yml

@@ -34,6 +34,56 @@ subjects:
   namespace: {{ .Release.Namespace }}
 
 ---
+apiVersion: storage.k8s.io/v1
+kind: StorageClass
+metadata:
+  name: {{ include "besu-node.fullname" . }}-storage
+  namespace: {{ .Release.Namespace }}
+provisioner: kubernetes.io/azure-file
+reclaimPolicy: Delete
+allowVolumeExpansion: true
+mountOptions:
+  - dir_mode=0755
+  - file_mode=0755
+  - uid=1000
+  - gid=1000
+  - mfsymlinks
+parameters:
+  skuName: Standard_LRS
+
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "besu-node.fullname" . }}-pvc-besu
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: {{ include "besu-node.fullname" . }}-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "{{ .Values.node.pvcSizeLimit }}" 
+
+
+{{- if .Values.nodeFlags.privacy }}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: {{ include "besu-node.fullname" . }}-pvc-orion
+  namespace: {{ .Release.Namespace }}
+spec:
+  storageClassName: {{ include "besu-node.fullname" . }}-storage
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: "{{ .Values.node.pvcSizeLimit }}" 
+
+{{- end}}
+
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -264,8 +314,8 @@ spec:
         configMap:
           name: {{ include "besu-node.fullname" . }}-besu-config
       - name: data
-        emptyDir:
-          sizeLimit: "{{ .Values.node.pvcSizeLimit }}"          
+        persistentVolumeClaim:
+          claimName: {{ include "besu-node.fullname" . }}-pvc-besu      
       {{- if .Values.node.permissions.enabled }}
       - name: permissions-config
         configMap:
@@ -279,8 +329,8 @@ spec:
         configMap:
           name: {{ include "besu-node.fullname" . }}-orion-config
       - name: orion-data
-        emptyDir:
-          sizeLimit: "{{ .Values.node.pvcSizeLimit }}"              
+        persistentVolumeClaim:
+          claimName: {{ include "besu-node.fullname" . }}-pvc-orion               
       {{- end }}
 
 

@@ -1,20 +1,39 @@
+# Quorum Azure
 
 ## Background
-1. Don't create more than one AKS cluster in the same subnet.
-2. AKS clusters may **not** use _169.254.0.0/16, 172.30.0.0/16, 172.31.0.0/16, or 192.0.2.0/24_ for the Kubernetes service address range.
-3. To interact with Azure APIs, an AKS cluster requires an Azure Active Directory (AD) [Service Principal](https://docs.microsoft.com/en-us/azure/aks/kubernetes-service-principal) or a [Mananged Identity](https://docs.microsoft.com/en-us/azure/aks/use-managed-identity). Either is needed to dynamically create and manage other Azure resources such as an Azure load balancer, container registry (ACR) etc
-4. CNI Networking
-By default, AKS clusters use **kubenet**, and a virtual network and subnet are created for you. With kubenet, nodes get an IP address from a virtual network subnet. Network address translation (NAT) is then configured on the nodes, and pods receive an IP address "hidden" behind the node IP. This approach reduces the number of IP addresses that you need to reserve in your network space for pods to use, however places constraints on what can connect to the nodes from outside the cluster (eg on prem nodes)
+The following is meant to guide you through running Hyperledger Besu or GoQuorum clients in Azure AKS (Kuberentes) in both development and production scenarios. As always you are free to customize the charts to suit your requirements. It is highly recommended to familiarize yourself with AKS (or equivalent Kubernetes infrastructure) before running things in production on Kubernetes. 
+
+It essentially comprises base infrastructure that is used to build the cluster & other resources in Azure via an [ARM template]('./arm/azuredeploy.json'). We also make use some Azure native services and features (tha are are provisioned via a [script]('./scripts/bootstrap.sh')) after the cluster is created. These incluide:
+- [AAD pod identities](https://docs.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity). 
+- [Secrets Store CSI drivers](https://docs.microsoft.com/en-us/azure/key-vault/general/key-vault-integrate-kubernetes)
+- Data is stored using dynamic StorageClasses backed by Azure Files. Please note the [Volume Claims](https://docs.microsoft.com/en-us/azure/aks/azure-disks-dynamic-pv) are fixed sizes and can be updated as you grow via a helm update, and will not need reprovisioning of the underlying storage class. 
+- [CNI](https://docs.microsoft.com/en-us/azure/aks/configure-azure-cni#:~:text=With%20Azure%20Container%20Networking%20Interface,of%20pods%20that%20it%20supports.) networking mode for AKS. By default, AKS clusters use **kubenet**, and a virtual network and subnet are created for you. With kubenet, nodes get an IP address from a virtual network subnet. Network address translation (NAT) is then configured on the nodes, and pods receive an IP address "hidden" behind the node IP. This approach reduces the number of IP addresses that you need to reserve in your network space for pods to use, however places constraints on what can connect to the nodes from outside the cluster (eg on prem nodes)
 
 With Azure Container Networking Interface (CNI), every pod gets an IP address from the subnet and can be accessed directly. These IP addresses must be unique across your network space, and must be planned in advance. Each node has a configuration parameter for the maximum number of pods that it supports. The equivalent number of IP addresses per node are then reserved up front for that node. This approach requires more planning, and can leads to IP address exhaustion as your application demands grow, however makes it easier for external nodes to connect to your cluster.
 
-![Image aks_cni](./static/aks_cni.png)
+![Image aks_cni](/static/aks_cni.png)
 
  If you have existing VNets, you can easily connect to the VNet with the k8s cluster by using [VNet Peering](https://docs.microsoft.com/en-us/azure/virtual-network/virtual-network-peering-overview)
 
 
 
+### Operation flow:
+1. Read this file in its entirety before proceeding
+2. See the  [Prerequisites](#prerequisites) section to enable some features before doing the deployment
+3. Use the [Usage](#usage) section
+
+#### Helm Charts:
+The dev charts are aimed at getting you up and running so you can experiment with the client and functionality of the tools, contracts etc. They embed node keys etc as secrets so that these are visible to you during development and you can learn about discovery and permissions. The prod charts will utilize all the built in Azure functionality and recommended best practices such as identities, secrets stored in keyvault with limited access etc
+
+#### Warning:
+
+1. Please do not create more than one AKS cluster in the same subnet.
+2. AKS clusters may **not** use _169.254.0.0/16, 172.30.0.0/16, 172.31.0.0/16, or 192.0.2.0/24_ for the Kubernetes service address range.
+
+
 ## Prerequisites:
+You will need to run these in your Azure subscription **before** any deployments.
+
 For this deployment we will provision AKS with CNI and a managed identity to authenticate and run operations of the cluster with other services. We also enable [AAD pod identities](https://docs.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity) which use the managed identity. This is in preview so you need to enable this feature by registering the EnablePodIdentityPreview feature:
 ```bash
 az feature register --name EnablePodIdentityPreview --namespace Microsoft.ContainerService
@@ -36,10 +55,7 @@ az group create --name ExampleGroup --location "East US"
 ```
 
 
-## Description
-This deployment template will create an AKS cluster for you in Azure, as well as a VM to run helm from to provision the cluster. Part of the process is that it will install Helm3 and the [Besu Helm charts](https://github.com/PegaSysEng/besu-kubernetes) in the home directory of the VM.
-
-## Deployment
+## Usage
 
 1. Deploy the template
 * Navigate to the [Azure portal](https://portal.azure.com), click `+ Create a resource` in the upper left corner.
@@ -68,13 +84,14 @@ Use `besu` or `quorum` for AKS_NAMESPACE depending on which blockchain client yo
 ../scripts/bootstrap.sh "AKS_RESOURCE_GROUP" "AKS_CLUSTER_NAME" "AKS_MANAGED_IDENTITY" "AKS_NAMESPACE"
 ```
 
+
 3. Deploy the charts 
 
 *For Besu:*
 ```bash
 
 cd helm/dev/
-helm install monitoring besu-monitoring --namespace monitoring --create-namespace 
+helm install monitoring ./charts/besu-monitoring --namespace besu
 helm install genesis ./charts/besu-genesis --namespace besu --values ./values/genesis.yml 
 
 helm install bootnode-1 ./charts/besu-node --namespace besu --values ./values/bootnode.yml
@@ -87,29 +104,28 @@ helm install validator-4 ./charts/besu-node --namespace besu --values ./values/v
 
 # spin up a besu and orion node pair
 helm install tx-1 ./charts/besu-node --namespace besu --values ./values/txnode.yml
-
 ```
 
-Optionally deploy the ingress controller like so in the `monitoring` namespace:
+Optionally deploy the ingress controller like so:
+
+NOTE: Deploying the ingress rules, assumes you are connecting to the `tx-1` node from section 3 above. Please update this as required to suit your requirements
+
 ```bash
 helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
 helm repo update
-helm install grafana-ingress ingress-nginx/ingress-nginx \
-    --namespace monitoring \
-    --set controller.name=grafana-ingress \
-    --set controller.watchNamespace=monitoring \
-    --set controller.ingressClass=grafana \
+helm install besu-ingress ingress-nginx/ingress-nginx \
+    --namespace besu \
     --set controller.replicaCount=2 \
     --set controller.nodeSelector."beta\.kubernetes\.io/os"=linux \
     --set defaultBackend.nodeSelector."beta\.kubernetes\.io/os"=linux \
-    --set rbac.create=true
+    --set controller.admissionWebhooks.patch.nodeSelector."beta\.kubernetes\.io/os"=linux
 
-kubectl apply -f ./ingress/ingress-rules-grafana.yml
+kubectl apply -f ./ingress/ingress-rules-besu.yml
 ```
 
-*For Quorum:*
+*For GoQuorum:*
 ```
-TO BE ADDED..
+To be added...
 ```
 
 
@@ -122,7 +138,8 @@ TO BE ADDED..
 http://<GRAFANA_INGRESS_IP>:80/d/XE4V0WGZz/besu-overview?orgId=1&refresh=10s
 
 # HTTP RPC API:
-curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' http://<BESU_INGRESS_IP>/jsonrpc/
+curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' http://<BESU_INGRESS_IP>/rpc/
+
 # which should return (confirming that the node running the JSON-RPC service has peers):
 {
   "jsonrpc" : "2.0",
@@ -138,6 +155,26 @@ curl -X POST -H "Content-Type: application/json" --data '{ "query": "{syncing{st
     "syncing" : null
   }
 }
+```
+
+*For GoQuorum:*
+```
+To be added...
+```
 
 
+## Customizing for production
+Once you are familiar with the base setup using the dev charts, please adjust the configuration ie num of nodes, topology etc to suit your requirements. 
 
+Some things are already setup and mereley need your config eg:
+- Alerting has been setup via an Action group but requires either an email address or slack webhook to send the alerts to. There are also basic alerts created for you which will utilise the action group. The list is not exhaustive and you should add alerts based on log queries in Azure Monitor to suit your requirements. Please refer to the [Azure Docs](https://docs.microsoft.com/en-us/azure/azure-monitor/alerts/action-groups-create-resource-manager-template) for more information 
+
+- Monitoring via Prometheus and Grafana with the Besu dashboards is enabled, but for production use please configure Grafana with your choice of auth mechanism eg OAuth.
+
+- Persistent volume claims: In the prod template, the size of the claims has been set to 100Gi, if you have a storage account that you wish to use you can set that up in the storageClass and additionally lower the size (which lowers cost)
+
+- In the production setup, we do **not** overwrite or delete node keys or the like from KeyVault and the charts are designed to be fail-safe ie if you accidentally delete the deployment and rerun it you will have you existing keys to match any permissions setup that you have. You will need to manually delete anything in vault.
+
+- To extend your nodes and allow other nodes (in a different cluster or outside Azure), you will need to peer your VNet with the other one and ensure that the CIDR blocks don't conflict. Once done the external nodes should be able to communicate with your nodes in AKS
+
+- 

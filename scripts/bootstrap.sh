@@ -18,7 +18,7 @@ echo "az get-credentials ..."
 # if running this on a VM/Function/etc use a managed identity
 # az login --identity --debug
 # if running locally
-#az login 
+az login 
 
 # The pod identity cant be done via an ARM template and can only be done via CLI, hence
 # https://docs.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity
