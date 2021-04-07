@@ -138,7 +138,7 @@ spec:
         app.kubernetes.io/instance: {{ .Release.Name }}
     spec:
       serviceAccountName: {{ include "besu-node.fullname" . }}-hooks-sa
-      restartPolicy: "Never"
+      restartPolicy: "OnFailure"
       containers:
         - name: delete-keys
           image: {{ .Values.image.besu.repository }}:{{ .Values.image.besu.tag }}

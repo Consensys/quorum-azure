@@ -23,7 +23,7 @@ With Azure Container Networking Interface (CNI), every pod gets an IP address fr
 3. Use the [Usage](#usage) section
 
 #### Helm Charts:
-The dev charts are aimed at getting you up and running so you can experiment with the client and functionality of the tools, contracts etc. They embed node keys etc as secrets so that these are visible to you during development and you can learn about discovery and permissions. The prod charts will utilize all the built in Azure functionality and recommended best practices such as identities, secrets stored in keyvault with limited access etc
+The dev charts are aimed at getting you up and running so you can experiment with the client and functionality of the tools, contracts etc. They embed node keys etc as secrets so that these are visible to you during development and you can learn about discovery and permissions. The prod charts use permissions and utilize all the built in Azure functionality and recommended best practices such as identities, secrets stored in keyvault with limited access etc
 
 #### Warning:
 
@@ -70,7 +70,7 @@ Alternatively use the CLI
 az deployment create \
   --name blockchain-aks \
   --location eastus \
-  --template-file ./azuredeploy.json \
+  --template-file ./arm/azuredeploy.json \
   --parameters env=dev location=eastus 
 ```
 
@@ -81,7 +81,7 @@ Once the deployment has completed, please run the [bootstrap](../scripts/bootstr
 Use `besu` or `quorum` for AKS_NAMESPACE depending on which blockchain client you are using
 
 ```bash
-../scripts/bootstrap.sh "AKS_RESOURCE_GROUP" "AKS_CLUSTER_NAME" "AKS_MANAGED_IDENTITY" "AKS_NAMESPACE"
+./scripts/bootstrap.sh "AKS_RESOURCE_GROUP" "AKS_CLUSTER_NAME" "AKS_MANAGED_IDENTITY" "AKS_NAMESPACE"
 ```
 
 
@@ -92,7 +92,7 @@ Use `besu` or `quorum` for AKS_NAMESPACE depending on which blockchain client yo
 
 cd helm/dev/
 helm install monitoring ./charts/besu-monitoring --namespace besu
-helm install genesis ./charts/besu-genesis --namespace besu --values ./values/genesis.yml 
+helm install genesis ./charts/besu-genesis --namespace besu --values ./values/genesis-besu.yml 
 
 helm install bootnode-1 ./charts/besu-node --namespace besu --values ./values/bootnode.yml
 helm install bootnode-2 ./charts/besu-node --namespace besu --values ./values/bootnode.yml
@@ -125,20 +125,57 @@ kubectl apply -f ./ingress/ingress-rules-besu.yml
 
 *For GoQuorum:*
 ```
-To be added...
+cd helm/dev/
+helm install monitoring ./charts/quorum-monitoring --namespace quorum
+helm install genesis ./charts/quorum-genesis --namespace quorum --values ./values/genesis-quorum.yml 
+
+helm install bootnode-1 ./charts/quorum-node --namespace quorum --values ./values/bootnode.yml
+
+helm install validator-1 ./charts/quorum-node --namespace quorum --values ./values/validator.yml
+helm install validator-2 ./charts/quorum-node --namespace quorum --values ./values/validator.yml
+helm install validator-3 ./charts/quorum-node --namespace quorum --values ./values/validator.yml
+helm install validator-4 ./charts/quorum-node --namespace quorum --values ./values/validator.yml
+
+# spin up a quorum and tessera node pair
+helm install tx-1 ./charts/quorum-node --namespace quorum --values ./values/txnode.yml
+```
+
+Optionally deploy the ingress controller like so:
+
+NOTE: Deploying the ingress rules, assumes you are connecting to the `tx-1` node from section 3 above. Please update this as required to suit your requirements
+
+```bash
+helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+helm repo update
+helm install quorum-ingress ingress-nginx/ingress-nginx \
+    --namespace quorum \
+    --set controller.replicaCount=2 \
+    --set controller.nodeSelector."beta\.kubernetes\.io/os"=linux \
+    --set defaultBackend.nodeSelector."beta\.kubernetes\.io/os"=linux \
+    --set controller.admissionWebhooks.patch.nodeSelector."beta\.kubernetes\.io/os"=linux
+
+kubectl apply -f ./ingress/ingress-rules-quorum.yml
 ```
 
 
 4. Once deployed, services are available as follows on the IP/ of the ingress controllers:
 
-*For Besu:*
+Monitoring (if deployed)
+```bash
+# For Besu's grafana address: 
+http://<INGRESS_IP>/d/XE4V0WGZz/besu-overview?orgId=1&refresh=10s
+
+# For GoQuorum's cakeshop address: 
+http://<INGRESS_IP>
+
+```
+
+
+API Calls to either client
 ```bash
 
-# Grafana address: 
-http://<GRAFANA_INGRESS_IP>:80/d/XE4V0WGZz/besu-overview?orgId=1&refresh=10s
-
 # HTTP RPC API:
-curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' http://<BESU_INGRESS_IP>/rpc/
+curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' http://<INGRESS_IP>/rpc/
 
 # which should return (confirming that the node running the JSON-RPC service has peers):
 {
@@ -148,18 +185,13 @@ curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","metho
 }
 
 # HTTP GRAPHQL API:
-curl -X POST -H "Content-Type: application/json" --data '{ "query": "{syncing{startingBlock currentBlock highestBlock}}"}' http://<BESU_INGRESS_IP>/graphql/graphql/
+curl -X POST -H "Content-Type: application/json" --data '{ "query": "{syncing{startingBlock currentBlock highestBlock}}"}' http://<INGRESS_IP>/graphql/graphql/
 # which should return 
 {
   "data" : {
     "syncing" : null
   }
 }
-```
-
-*For GoQuorum:*
-```
-To be added...
 ```
 
 

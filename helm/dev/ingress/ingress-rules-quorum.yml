@@ -1,0 +1,26 @@
+---
+apiVersion: networking.k8s.io/v1beta1
+kind: Ingress
+metadata:
+  name: quorum-ingress-routes
+  namespace: quorum
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  rules:
+  - http:
+      paths:
+      - path: /rpc(/|$)(.*)
+        backend:
+          serviceName: quorum-node-tx-1
+          servicePort: 8545
+      - path: /graphql(/|$)(.*)
+        backend:
+          serviceName: quorum-node-tx-1
+          servicePort: 8547          
+      - path: /(.*)
+        backend:
+          serviceName: quorum-monitoring-monitoring-cakeshop
+          servicePort: 8999

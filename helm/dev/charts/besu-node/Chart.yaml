@@ -15,7 +15,7 @@ home: https://besu.hyperledger.org
 sources:
   - https://github.com/hyperledger/besu
 maintainers:
-  - name: devops
-    email: devops@pegasys.tech
+  - name: Joshua Fernandes
+    email: joshua.fernandes@consensys.net
 icon: http://besu.hyperledger.org/en/latest/favicon.ico
 
