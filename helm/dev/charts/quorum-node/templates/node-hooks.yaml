@@ -50,7 +50,7 @@ subjects:
 apiVersion: batch/v1
 kind: Job
 metadata:
-  name: {{ include "quorum-node.fullname" . }}-pre-start-hook
+  name: {{ include "quorum-node.fullname" . }}-pre-install-hook
   namespace: {{ .Release.Namespace }}
   annotations:
     helm.sh/hook: pre-install

@@ -23,7 +23,7 @@ With Azure Container Networking Interface (CNI), every pod gets an IP address fr
 3. Use the [Usage](#usage) section
 
 #### Helm Charts:
-The dev charts are aimed at getting you up and running so you can experiment with the client and functionality of the tools, contracts etc. They embed node keys etc as secrets so that these are visible to you during development and you can learn about discovery and permissions. The prod charts use permissions and utilize all the built in Azure functionality and recommended best practices such as identities, secrets stored in keyvault with limited access etc
+The dev charts are aimed at getting you up and running so you can experiment with the client and functionality of the tools, contracts etc. They embed node keys etc as secrets so that these are visible to you during development and you can learn about discovery. The prod charts use static-peering and utilize all the built in Azure functionality and recommended best practices such as identities, secrets stored in keyvault with limited access etc. **When using the prod charts please ensure you add the necessary values to the `azure` section of the values.yml file**
 
 #### Warning:
 
@@ -91,6 +91,7 @@ Use `besu` or `quorum` for AKS_NAMESPACE depending on which blockchain client yo
 ```bash
 
 cd helm/dev/
+# If using this monitoring chart in prod, please ensure you set some authentication mechanism in place, please refer to https://grafana.com/docs/grafana/latest/auth/grafana/
 helm install monitoring ./charts/besu-monitoring --namespace besu
 helm install genesis ./charts/besu-genesis --namespace besu --values ./values/genesis-besu.yml 
 
@@ -124,11 +125,15 @@ kubectl apply -f ./ingress/ingress-rules-besu.yml
 ```
 
 *For GoQuorum:*
+
+Change directory to the charts folder ie `/charts/dev` or `/charts/prod`
 ```
-cd helm/dev/
+cd helm/dev/  
+# Please do not use this monitoring chart in prod, it needs authentication, pending close of https://github.com/ConsenSys/cakeshop/issues/86 
 helm install monitoring ./charts/quorum-monitoring --namespace quorum
 helm install genesis ./charts/quorum-genesis --namespace quorum --values ./values/genesis-quorum.yml 
 
+# Bootnodes are only used in the **dev** charts setup 
 helm install bootnode-1 ./charts/quorum-node --namespace quorum --values ./values/bootnode.yml
 
 helm install validator-1 ./charts/quorum-node --namespace quorum --values ./values/validator.yml
@@ -185,7 +190,7 @@ curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","metho
 }
 
 # HTTP GRAPHQL API:
-curl -X POST -H "Content-Type: application/json" --data '{ "query": "{syncing{startingBlock currentBlock highestBlock}}"}' http://<INGRESS_IP>/graphql/graphql/
+curl -X POST -H "Content-Type: application/json" --data '{ "query": "{syncing{startingBlock currentBlock highestBlock}}"}' http://<INGRESS_IP>/graphql/
 # which should return 
 {
   "data" : {

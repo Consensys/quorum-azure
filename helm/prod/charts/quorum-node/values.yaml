@@ -1,0 +1,91 @@
+---
+
+image:
+  pullPolicy: Always
+  quorum:
+    repository: quorumengineering/quorum
+    tag: 21.1.0
+  tessera:
+    repository: quorumengineering/tessera
+    tag: 21.1.0
+  hooks:
+    repository: consensys/istanbul-tools
+    tag: 'latest'
+
+azure:
+  # the script/bootstrap.sh uses the name 'default-pod-identity' so only change this if you altered the name
+  identityName: default-pod-identity
+  # the clientId of the user assigned managed identity created in the template
+  identityClientId: azure-clientId
+  keyvaultName: azure-keyvault
+  # the tenant ID of the key vault
+  tenantId: azure-tenantId
+
+nodeFlags:
+  generateKeys: false
+  privacy: false
+
+node:
+  # privKey:
+  # pubKey:
+  tmkey: ""
+  tmpub: ""
+  resources:
+    memRequest: "1024Mi"
+    memLimit: "2048Mi"
+    cpuRequest: "100m"
+    cpuLimit: "500m"
+  quorumConfig:
+    pvcSizeLimit: "50Gi"
+    pvcStorageClass: "standard"
+    networkId: 10
+    replicaCount: 1
+    genesisPath: "/config/quorum/genesis.json"
+    dataDir: "/data"
+    keysPath: "/secrets"
+    account: {}
+      # unlock: 0
+      # password: "/config/keys/password.txt"
+    log:
+      verbosity: 5
+    miner:
+     threads: 1
+     blockPeriod: 5
+    p2p:
+      enabled: true
+      addr: "0.0.0.0"
+      port: 30303
+    rpc:
+      enabled: true
+      addr: "0.0.0.0"
+      port: 8545
+      corsDomain: "*"
+      vHosts: "*"
+      api: "admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,istanbul"
+      authenticationEnabled: false
+    ws:
+      enabled: true
+      addr: "0.0.0.0"
+      port: 8546
+      api: "admin,db,eth,debug,miner,net,shh,txpool,personal,web3,quorum,istanbul"
+      origins: "*"
+      authenticationEnabled: false
+    graphql:
+      enabled: true
+      addr: "0.0.0.0"
+      port: 8547
+      corsDomain: "*"
+      vHosts: "*"
+    metrics:
+      enabled: true
+      pprofaddr: "0.0.0.0"
+    tessera:
+      url: "http://127.0.0.1:8888"
+      port: 9000
+      tpport: 9080
+      password: ""
+
+nodeSelector: {}
+tolerations: []
+affinity: {}
+resources: {}
