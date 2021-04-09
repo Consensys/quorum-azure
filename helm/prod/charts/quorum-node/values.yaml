@@ -30,11 +30,17 @@ node:
   # pubKey:
   tmkey: ""
   tmpub: ""
-  resources:
-    memRequest: "1024Mi"
-    memLimit: "2048Mi"
-    cpuRequest: "100m"
-    cpuLimit: "500m"
+  resources: #Standard_D2a_v4
+    quorum:
+      cpuLimit: 1.4
+      cpuRequest: 1
+      memLimit: "6G"
+      memRequest: "4G"
+    tx:
+      cpuLimit: 0.7
+      cpuRequest: 0.5
+      memLimit: "3G"
+      memRequest: "2G"      
   quorumConfig:
     pvcSizeLimit: "50Gi"
     pvcStorageClass: "standard"

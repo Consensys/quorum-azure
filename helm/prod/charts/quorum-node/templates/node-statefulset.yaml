@@ -113,11 +113,11 @@ spec:
         imagePullPolicy: {{ .Values.imagePullPolicy }}
         resources:
           requests:
-            cpu: "{{ .Values.node.resources.cpuRequest }}"
-            memory: "{{ .Values.node.resources.memRequest }}"
+            cpu: "{{ .Values.node.resources.tx.cpuRequest }}"
+            memory: "{{ .Values.node.resources.tx.memRequest }}"
           limits:
-            cpu: "{{ .Values.node.resources.cpuLimit }}"
-            memory: "{{ .Values.node.resources.memLimit }}"
+            cpu: "{{ .Values.node.resources.tx.cpuLimit }}"
+            memory: "{{ .Values.node.resources.tx.memLimit }}"
         env:
           - name: POD_IP
             valueFrom:
@@ -213,12 +213,21 @@ spec:
         image: {{ .Values.image.quorum.repository }}:{{ .Values.image.quorum.tag }}
         imagePullPolicy: {{ .Values.imagePullPolicy }}
         resources:
+      {{- if .Values.nodeFlags.privacy }}
           requests:
-            cpu: "{{ .Values.node.resources.cpuRequest }}"
-            memory: "{{ .Values.node.resources.memRequest }}"
+            cpu: "{{ .Values.node.resources.tx.cpuRequest }}"
+            memory: "{{ .Values.node.resources.tx.memRequest }}"
           limits:
-            cpu: "{{ .Values.node.resources.cpuLimit }}"
-            memory: "{{ .Values.node.resources.memLimit }}"
+            cpu: "{{ .Values.node.resources.tx.cpuLimit }}"
+            memory: "{{ .Values.node.resources.tx.memLimit }}"
+       {{- else }}     
+          requests:
+            cpu: "{{ .Values.node.resources.quorum.cpuRequest }}"
+            memory: "{{ .Values.node.resources.quorum.memRequest }}"
+          limits:
+            cpu: "{{ .Values.node.resources.quorum.cpuLimit }}"
+            memory: "{{ .Values.node.resources.quorum.memLimit }}"
+       {{- end }}     
         env:
           - name: POD_IP
             valueFrom:
