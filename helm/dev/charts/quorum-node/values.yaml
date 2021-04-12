@@ -29,8 +29,10 @@ node:
     cpuRequest: "100m"
     cpuLimit: "500m"
   quorumConfig:
-    pvcSizeLimit: "50Gi"
-    pvcStorageClass: "standard"
+    storage:
+      enabled: true
+      pvcSizeLimit: "50Gi"
+      pvcStorageClass: "standard"
     networkId: 10
     replicaCount: 1
     genesisPath: "/config/quorum/genesis.json"

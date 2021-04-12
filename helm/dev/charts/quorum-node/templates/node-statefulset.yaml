@@ -51,6 +51,7 @@ parameters:
   skuName: Standard_LRS
 
 ---
+{{- if .Values.node.quorumConfig.storage.enabled }}
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -62,8 +63,8 @@ spec:
   storageClassName: {{ include "quorum-node.fullname" . }}-storage
   resources:
     requests:
-      storage: "{{ .Values.node.quorumConfig.pvcSizeLimit }}"
-
+      storage: "{{ .Values.node.storage.quorumConfig.pvcSizeLimit }}"
+{{- end }}
 
 ---
 apiVersion: apps/v1
@@ -136,19 +137,19 @@ spec:
               fieldRef:
                 fieldPath: metadata.name
           - name: TESSERA_CONFIG_TYPE
-            value: "-09"              
+            value: "-09"
           - name: PRIVATE_CONFIG
             value: "/ipc/tm/tm.ipc"
         volumeMounts:
           - name: tessera-secrets
-            mountPath: {{ .Values.node.quorumConfig.keysPath }} 
+            mountPath: {{ .Values.node.quorumConfig.keysPath }}
             readOnly: true
           - name: data
             mountPath: {{ .Values.node.quorumConfig.dataDir }}
           - name: ipc-volume
             mountPath: /ipc/
           - name: tessera-peers
-            mountPath: /config/tessera-peers            
+            mountPath: /config/tessera-peers
         ports:
           - name: tessera
             containerPort: {{ .Values.node.quorumConfig.tessera.port }}
@@ -161,7 +162,7 @@ spec:
           - -c
         args:
           - |
-            exec 
+            exec
             mkdir -p /ipc/tm/;
             mkdir {{ .Values.node.quorumConfig.dataDir }}/tm/;
             cp {{ .Values.node.quorumConfig.keysPath }}/tm.* {{ .Values.node.quorumConfig.dataDir }}/tm/ ;
@@ -241,11 +242,11 @@ spec:
           - name: QUORUM_CONSENSUS
             value: "istanbul"
           - name: PRIVATE_CONFIG
-          {{- if .Values.nodeFlags.privacy }}       
+          {{- if .Values.nodeFlags.privacy }}
             value: "/ipc/tm/tm.ipc"
-          {{ else }}   
+          {{ else }}
             value: "ignore"
-          {{- end }}  
+          {{- end }}
           - name: BOOTNODE1_PUBKEY
             valueFrom:
               secretKeyRef:
@@ -260,7 +261,7 @@ spec:
             readOnly: true
           - name: static-nodes
             mountPath: /config/static/
-            readOnly: true  
+            readOnly: true
           - name: data
             mountPath: {{ .Values.node.quorumConfig.dataDir }}
           - name: ipc-volume
@@ -286,13 +287,13 @@ spec:
           - -c
         args:
           - |
-            exec 
+            exec
             mkdir -p /ipc/geth/
-            apk add curl 
-          {{- if .Values.nodeFlags.privacy }}   
+            apk add curl
+          {{- if .Values.nodeFlags.privacy }}
             until $(curl --output /dev/null --silent --head --fail http://127.0.0.1:9000/upcheck); do echo 'waiting for transaction manager to start...'; sleep 5; done;
             echo transaction manager is up;
-          {{- end }}  
+          {{- end }}
             geth --datadir={{ .Values.node.quorumConfig.dataDir }}/dd init {{ .Values.node.quorumConfig.genesisPath }}
             cp {{ .Values.node.quorumConfig.keysPath }}/nodekey {{ .Values.node.quorumConfig.dataDir }}/dd/geth/nodekey
             cp /config/static/static-nodes.json {{ .Values.node.quorumConfig.dataDir }}/dd/geth/static-nodes.json
@@ -312,18 +313,18 @@ spec:
             --port {{ .Values.node.quorumConfig.p2p.port }} \
           {{- if .Values.node.quorumConfig.rpc.enabled }}
             --rpc --rpcaddr {{ .Values.node.quorumConfig.rpc.addr }} --rpcport {{ .Values.node.quorumConfig.rpc.port }} --rpccorsdomain {{ .Values.node.quorumConfig.rpc.corsDomain | quote }} --rpcvhosts {{ .Values.node.quorumConfig.rpc.vHosts | quote }} --rpcapi {{ .Values.node.quorumConfig.rpc.api | quote }} \
-          {{- end }}   
+          {{- end }}
           {{- if .Values.node.quorumConfig.ws.enabled }}
             --ws --wsaddr {{ .Values.node.quorumConfig.ws.addr }} --wsport {{ .Values.node.quorumConfig.ws.port }} --wsorigins {{ .Values.node.quorumConfig.ws.origins | quote }} --wsapi {{ .Values.node.quorumConfig.ws.api | quote }} \
-          {{- end }}  
+          {{- end }}
           {{- if .Values.node.quorumConfig.graphql.enabled }}
             --graphql --graphql.addr {{ .Values.node.quorumConfig.graphql.addr }} --graphql.port {{ .Values.node.quorumConfig.graphql.port }} --graphql.corsdomain {{ .Values.node.quorumConfig.graphql.corsDomain | quote }} --graphql.vhosts {{ .Values.node.quorumConfig.graphql.vHosts | quote }} \
           {{- end }}
           {{- if hasKey .Values.node.quorumConfig.account "unlock" }}
              --unlock {{ .Values.node.quorumConfig.account.unlock }} --allow-insecure-unlock --password {{ .Values.node.quorumConfig.account.password }} \
           {{- end }}
-            --metrics --metrics.expensive --pprof --pprofaddr={{ .Values.node.quorumConfig.metrics.pprofaddr | quote }} 
-             
+            --metrics --metrics.expensive --pprof --pprofaddr={{ .Values.node.quorumConfig.metrics.pprofaddr | quote }}
+
       volumes:
       - name: secrets
         secret:
@@ -339,13 +340,17 @@ spec:
           name: quorum-node-enodes
           items:
             - key: static-nodes.json
-              path: static-nodes.json    
+              path: static-nodes.json
       - name: ipc-volume
-        emptyDir: {}                        
+        emptyDir: {}
       - name: data
+        {{- if .Values.node.quorumConfig.storage.enabled }}
         persistentVolumeClaim:
           claimName: {{ include "quorum-node.fullname" . }}-pvc
-      {{- if .Values.nodeFlags.privacy }}   
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
+      {{- if .Values.nodeFlags.privacy }}
       - name: tessera-peers
         configMap:
           name: tessera-peers
@@ -355,4 +360,4 @@ spec:
       - name: tessera-secrets
         secret:
           secretName: {{ include "quorum-node.fullname" . }}-tessera-keys
-      {{- end }}                 
+      {{- end }}
