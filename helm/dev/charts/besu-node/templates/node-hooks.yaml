@@ -82,9 +82,9 @@ spec:
               echo "Besu nodekey generation ..."
               /opt/besu/bin/besu public-key export --to=public.key
               # the public key has an extra '0x' in front which isn't accepted by the enode format, this strips that out
-              sed 's/^0x//' ./public${j}.key > enode.key
+              sed 's/^0x//' ./public${j}.key > enode
               echo "Creating {{ template "besu-node.fullname" . }} secrets in k8s ..."
-              ./kubectl create secret generic {{ template "besu-node.fullname" . }}-keys --namespace {{ .Release.Namespace }} --from-file=private.key=/opt/besu/key --from-file=public.key=./public.key --from-file=enode.key=./enode.key
+              ./kubectl create secret generic {{ template "besu-node.fullname" . }}-keys --namespace {{ .Release.Namespace }} --from-file=private.key=/opt/besu/key --from-file=public.key=./public.key --from-file=enode=./enode
  
             {{- end }}       
               echo "Completed"

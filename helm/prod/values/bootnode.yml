@@ -1,7 +1,8 @@
+---
 
 nodeFlags:
-  bootnode: false
-  privacy: true
+  bootnode: true
+  privacy: false
 
 azure:
   # the script/bootstrap.sh uses the name 'default-pod-identity' so only change this if you altered the name
@@ -11,13 +12,3 @@ azure:
   keyvaultName: azure-keyvault
   # the tenant ID of the key vault
   tenantId: azure-tenantId
-
-privacy:
-  password: Password
-  # the orion bootnode so to speak
-  othernodes: "self"
-  orionConfig: 
-    nodeport: 8080
-    nodenetworkinterface: "0.0.0.0"
-    clientport: 8888
-    clientnetworkinterface: "0.0.0.0"

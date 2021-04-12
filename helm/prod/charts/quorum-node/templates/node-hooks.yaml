@@ -82,7 +82,6 @@ spec:
 
             echo "{{ template "quorum-node.fullname" . }} Pre Install hook ..."
 
-          {{- if .Values.nodeFlags.generateKeys }}       
     
             function safeWriteSecret {
               key=$1
@@ -154,11 +153,13 @@ spec:
             echo "Creating tessera keys in keyvault for {{ template "quorum-node.fullname" . }} ..."
             safeWriteSecret {{ template "quorum-node.fullname" . }}-tmkey /tmp/tm.key
             safeWriteSecret {{ template "quorum-node.fullname" . }}-tmkeypub /tmp/tm.pub
+            echo -ne $(sed -n '1p' /tmp/password.txt )> /tmp/password
+            safeWriteSecret {{ template "quorum-node.fullname" . }}-tmpassword /tmp/password
+
             update_tessera_peers_configmap
 
           {{- end }}  
 
-          {{- end }}       
             
             echo "Completed"
 

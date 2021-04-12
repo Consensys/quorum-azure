@@ -40,14 +40,13 @@ metadata:
   name: {{ include "besu-node.fullname" . }}-storage
   namespace: {{ .Release.Namespace }}
 provisioner: kubernetes.io/azure-file
-reclaimPolicy: Delete
+reclaimPolicy: Retain
 allowVolumeExpansion: true
 mountOptions:
   - dir_mode=0755
   - file_mode=0755
   - uid=1000
   - gid=1000
-  - mfsymlinks
 parameters:
   skuName: Standard_LRS
 
@@ -89,6 +88,7 @@ kind: StatefulSet
 metadata:
   name: {{ template "besu-node.fullname" . }}
   labels:
+    aadpodidbinding: "{{ .Values.azure.identityName }}"
     app: {{ template "besu-node.fullname" . }}
     chart: {{ template "besu-node.chart" . }}
     release: {{ .Release.Name }}
@@ -114,6 +114,7 @@ spec:
   template:
     metadata:
       labels:
+        aadpodidbinding: "{{ .Values.azure.identityName }}"
         app: {{ template "besu-node.fullname" . }}
         release: {{ .Release.Name }}
         component: {{ .Release.Name }}
@@ -139,7 +140,9 @@ spec:
       {{- if .Values.nodeFlags.privacy }}
       - name: {{ .Release.Name }}-orion
         image: {{ .Values.image.orion.repository }}:{{ .Values.image.orion.tag }}
-        imagePullPolicy: {{ .Values.image.orion.pullPolicy }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        securityContext:
+          runAsUser: 0
         resources:
           requests:
             cpu: "{{ .Values.node.resources.cpuRequest }}"
@@ -172,7 +175,7 @@ spec:
           {{- end}}            
 
         volumeMounts:
-          - name: orion-key
+          - name: akv-secrets-store
             mountPath: /secrets
             readOnly: true
           - name: orion-config
@@ -200,18 +203,12 @@ spec:
             port: {{ .Values.privacy.orionConfig.clientport}}
           initialDelaySeconds: 180
           periodSeconds: 60
-        readinessProbe:
-          httpGet:
-            path: /upcheck
-            port: {{ .Values.privacy.orionConfig.clientport}}
-          initialDelaySeconds: 180
-          periodSeconds: 60
 
       {{- end}}
 
       - name: {{ .Release.Name }}-besu
         image: {{ .Values.image.besu.repository }}:{{ .Values.image.besu.tag }}
-        imagePullPolicy: {{ .Values.image.besu.pullPolicy }}
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
         resources:
           requests:
             cpu: "{{ .Values.node.resources.cpuRequest }}"
@@ -231,20 +228,16 @@ spec:
           - name: BOOTNODE1_PUBKEY
             valueFrom:
               secretKeyRef:
-                name: besu-node-bootnode-1-keys
+                name: besu-node-bootnode-1-enode
                 key: enode
           - name: BOOTNODE2_PUBKEY
             valueFrom:
               secretKeyRef:
-                name: besu-node-bootnode-2-keys
+                name: besu-node-bootnode-2-enode
                 key: enode
         volumeMounts:
-        {{- if .Values.nodeFlags.privacy }}
-          - name: orion-key
-            mountPath: /orionsecrets
-            readOnly: true
-        {{- end}} 
-          - name: key
+
+          - name: akv-secrets-store
             mountPath: /secrets
             readOnly: true
           - name: genesis
@@ -283,14 +276,14 @@ spec:
             export BOOTNODE_ENODE1="enode://${BOOTNODE1_PUBKEY}@besu-node-bootnode-1-0.besu-node-bootnode-1.{{ .Release.Namespace }}.svc.cluster.local:30303" ;
             export BOOTNODE_ENODE2="enode://${BOOTNODE2_PUBKEY}@besu-node-bootnode-2-0.besu-node-bootnode-2.{{ .Release.Namespace }}.svc.cluster.local:30303" ;
             /opt/besu/bin/besu \
-              --node-private-key-file=/secrets/private.key \
+              --node-private-key-file=/secrets/nodekey \
               --config-file=/etc/besu/config.toml \
               --Xdns-enabled=true --Xdns-update-enabled=true --Xnat-kube-service-name={{ include "besu-node.fullname" . }} \
               --min-gas-price=0 \
           {{- if .Values.nodeFlags.privacy -}}
               --privacy-enabled=true \
               --privacy-url="http://{{ include "besu-node.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.privacy.orionConfig.clientport}}" \
-              --privacy-public-key-file=/orionsecrets/public.key \
+              --privacy-public-key-file=/secrets/tm.pub \
           {{- end -}} 
               --bootnodes=${BOOTNODE_ENODE1},${BOOTNODE_ENODE2} 
 
@@ -301,9 +294,12 @@ spec:
           initialDelaySeconds: 180
           periodSeconds: 60              
       volumes:
-      - name: key
-        secret:
-          secretName: {{ include "besu-node.fullname" . }}-keys
+      - name: akv-secrets-store
+        csi:
+          driver: secrets-store.csi.k8s.io
+          readOnly: true
+          volumeAttributes:
+            secretProviderClass: {{ include "besu-node.fullname" . }}-azure-secret-provider
       - name: genesis
         configMap:
           name: besu-genesis
@@ -322,9 +318,6 @@ spec:
           name: {{ include "besu-node.fullname" . }}-permissions
       {{- end }}
       {{- if .Values.nodeFlags.privacy }}
-      - name: orion-key
-        secret:
-          secretName: {{ include "besu-node.fullname" . }}-orion-keys
       - name: orion-config
         configMap:
           name: {{ include "besu-node.fullname" . }}-orion-config

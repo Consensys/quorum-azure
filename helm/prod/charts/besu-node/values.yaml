@@ -1,20 +1,28 @@
 ---
 image:
+  pullPolicy: Always
   besu:
     repository: hyperledger/besu
-    tag: latest
-    pullPolicy: IfNotPresent
+    tag: 'latest'
   orion:
     repository: consensys/quorum-orion
-    tag: latest
-    pullPolicy: IfNotPresent
+    tag: 'latest'
+  hooks:
+    repository: consensys/istanbul-tools
+    tag: 'latest'
+
+azure:
+  # the script/bootstrap.sh uses the name 'default-pod-identity' so only change this if you altered the name
+  identityName: default-pod-identity
+  # the clientId of the user assigned managed identity created in the template
+  identityClientId: azure-clientId
+  keyvaultName: azure-keyvault
+  # the tenant ID of the key vault
+  tenantId: azure-tenantId
 
 nodeFlags:
   bootnode: false
-  generateKeys: false
   privacy: false
-  # be careful with this one
-  removeKeysOnDeletion: false
 
 node:
   # privKey:
@@ -69,7 +77,6 @@ node:
     interval: 15
     prometheusJob: "besu"
   privacy:
-    enabled: false
     url: "http://127.0.0.1:8888"
     precompiledAddress: 9
   permissions:
@@ -87,7 +94,7 @@ node:
 privacy:
   # privKey:
   # pubKey:
-  # password:
+  password: Password
   # the orion bootnode so to speak
   othernodes: "self"
   orionConfig: 

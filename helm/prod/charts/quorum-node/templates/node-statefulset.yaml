@@ -47,6 +47,7 @@ mountOptions:
   - gid=0
   - mfsymlinks
 allowVolumeExpansion: true
+reclaimPolicy: Retain
 parameters:
   skuName: Standard_LRS
 
@@ -156,6 +157,7 @@ spec:
             exec 
             mkdir -p /ipc/tm/;
             mkdir {{ .Values.node.quorumConfig.dataDir }}/tm/;
+              
             cp {{ .Values.node.quorumConfig.keysPath }}/tm.* {{ .Values.node.quorumConfig.dataDir }}/tm/ ;
 
                 cat <<EOF > {{ .Values.node.quorumConfig.dataDir }}/tm/tessera-config-09.json

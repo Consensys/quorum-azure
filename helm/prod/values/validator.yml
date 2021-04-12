@@ -1,7 +1,6 @@
 ---
-
 nodeFlags:
-  generateKeys: false
+  bootnode: false
   privacy: false
 
 azure:

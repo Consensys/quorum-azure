@@ -23,7 +23,7 @@ With Azure Container Networking Interface (CNI), every pod gets an IP address fr
 3. Use the [Usage](#usage) section
 
 #### Helm Charts:
-The dev charts are aimed at getting you up and running so you can experiment with the client and functionality of the tools, contracts etc. They embed node keys etc as secrets so that these are visible to you during development and you can learn about discovery. The prod charts use static-peering and utilize all the built in Azure functionality and recommended best practices such as identities, secrets stored in keyvault with limited access etc. **When using the prod charts please ensure you add the necessary values to the `azure` section of the values.yml file**
+The dev charts are aimed at getting you up and running so you can experiment with the client and functionality of the tools, contracts etc. They embed node keys etc as secrets so that these are visible to you during development and you can learn about discovery. The prod charts utilize all the built in Azure functionality and recommended best practices such as identities, secrets stored in keyvault with limited access etc. **When using the prod charts please ensure you add the necessary values to the `azure` section of the values.yml file**
 
 #### Warning:
 

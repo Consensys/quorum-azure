@@ -22,9 +22,9 @@ azure:
   tenantId: azure-tenantId
 
 nodeFlags:
-  generateKeys: false
   privacy: false
-
+  bootnode: false 
+  
 node:
   # privKey:
   # pubKey:

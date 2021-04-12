@@ -95,8 +95,8 @@ spec:
               for f in `seq 0 $(( {{ .Values.rawGenesisConfig.blockchain.nodes.count  }} -1 ))`; do 
                 c=$(($f + 1));
                 /opt/istanbul-tools/bin/bootnode -nodekey /generated-config/$f/nodekey -writeaddress > /generated-config/$f/nodekey.pub
-                echo -ne $(cat /generated-config/$f/nodekey.pub) > /generated-config/$f/enode.key
-                kubectl create secret generic quorum-node-validator-$c-keys --namespace {{ .Release.Namespace }} --from-file=nodekey=/generated-config/$f/nodekey --from-file=nodekey.pub=/generated-config/$f/nodekey.pub --from-file=enode=/generated-config/$f/enode.key 
+                echo -ne $(cat /generated-config/$f/nodekey.pub) > /generated-config/$f/enode
+                kubectl create secret generic quorum-node-validator-$c-keys --namespace {{ .Release.Namespace }} --from-file=nodekey=/generated-config/$f/nodekey --from-file=nodekey.pub=/generated-config/$f/nodekey.pub --from-file=enode=/generated-config/$f/enode 
                 
                 # add to the static-nodes
                 pubkey=$(cat /generated-config/$f/nodekey.pub )
@@ -109,8 +109,8 @@ spec:
                 f="bootnode-$j"
                 mkdir -p /generated-config/$f
                 /opt/istanbul-tools/bin/bootnode -genkey /generated-config/$f/nodekey -writeaddress > /generated-config/$f/nodekey.pub
-                echo -ne $(cat /generated-config/$f/nodekey.pub) > /generated-config/$f/enode.key
-                kubectl create secret generic quorum-node-$f-keys --namespace {{ .Release.Namespace }} --from-file=nodekey=/generated-config/$f/nodekey --from-file=nodekey.pub=/generated-config/$f/nodekey.pub --from-file=enode=/generated-config/$f/enode.key 
+                echo -ne $(cat /generated-config/$f/nodekey.pub) > /generated-config/$f/enode
+                kubectl create secret generic quorum-node-$f-keys --namespace {{ .Release.Namespace }} --from-file=nodekey=/generated-config/$f/nodekey --from-file=nodekey.pub=/generated-config/$f/nodekey.pub --from-file=enode=/generated-config/$f/enode 
               
                 # add to the static-nodes
                 pubkey=$(cat /generated-config/$f/nodekey.pub )
