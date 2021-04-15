@@ -20,11 +20,8 @@ rawGenesisConfig:
     difficulty: '0x1'
     mixHash: '0x63746963616c2062797a616e74696e65206661756c7420746f6c6572616e6365'
     coinbase: '0x0000000000000000000000000000000000000000'
-    alloc:
-      627306090abaB3A6e1400e9345bC60c78a8BEf57:
-        balance: '0x446c3b15f9926687d2c40534fdb564000000000000'
-      f17f52151EbEF6C7334FAD080c5704D77216b732:
-        balance: '0x446c3b15f9926687d2c40534fdb564000000000000'
+    # insert your prod accounts here
+    alloc: {} 
   blockchain:
     nodes:
       generate: true

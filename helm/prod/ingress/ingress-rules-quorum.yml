@@ -20,7 +20,3 @@ spec:
         backend:
           serviceName: quorum-node-tx-1
           servicePort: 8547          
-      - path: /(.*)
-        backend:
-          serviceName: quorum-monitoring-monitoring-cakeshop
-          servicePort: 8999
