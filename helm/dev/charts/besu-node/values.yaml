@@ -19,8 +19,10 @@ nodeFlags:
 node:
   # privKey:
   # pubKey:
-  pvcSizeLimit: "10Gi"
-  pvcStorageClass: "standard"
+  storage:
+    enabled: true
+    pvcSizeLimit: "10Gi"
+    pvcStorageClass: "standard"
   resources:
     memRequest: "1024Mi"
     memLimit: "2048Mi"
@@ -90,7 +92,7 @@ privacy:
   # password:
   # the orion bootnode so to speak
   othernodes: "self"
-  orionConfig: 
+  orionConfig:
     nodeport: 8080
     nodenetworkinterface: "0.0.0.0"
     clientport: 8888

@@ -51,6 +51,7 @@ mountOptions:
 parameters:
   skuName: Standard_LRS
 
+{{- if .Values.node.storage.enabled }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -63,10 +64,10 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: "{{ .Values.node.pvcSizeLimit }}" 
+      storage: "{{ .Values.node.storage.pvcSizeLimit }}"
+{{- end }}
 
-
-{{- if .Values.nodeFlags.privacy }}
+{{- if and .Values.nodeFlags.privacy .Values.node.storage.enabled }}
 ---
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -79,9 +80,8 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: "{{ .Values.node.pvcSizeLimit }}" 
-
-{{- end}}
+      storage: "{{ .Values.node.storage.pvcSizeLimit }}"
+{{- end }}
 
 ---
 apiVersion: apps/v1
@@ -165,11 +165,11 @@ spec:
           - name: ORION_CLIENTURL
             value: "http://{{ include "besu-node.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.privacy.orionConfig.clientport}}/"
           - name: ORION_OTHERNODES
-          {{- if eq .Values.privacy.othernodes "self" }}            
+          {{- if eq .Values.privacy.othernodes "self" }}
             value: "http://{{ include "besu-node.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.privacy.orionConfig.nodeport}}/"
-          {{- else }}            
-            value: {{ .Values.privacy.othernodes | quote }}            
-          {{- end}}            
+          {{- else }}
+            value: {{ .Values.privacy.othernodes | quote }}
+          {{- end}}
 
         volumeMounts:
           - name: orion-key
@@ -243,7 +243,7 @@ spec:
           - name: orion-key
             mountPath: /orionsecrets
             readOnly: true
-        {{- end}} 
+        {{- end}}
           - name: key
             mountPath: /secrets
             readOnly: true
@@ -279,7 +279,7 @@ spec:
           - -c
         args:
           - |
-            exec 
+            exec
             export BOOTNODE_ENODE1="enode://${BOOTNODE1_PUBKEY}@besu-node-bootnode-1-0.besu-node-bootnode-1.{{ .Release.Namespace }}.svc.cluster.local:30303" ;
             export BOOTNODE_ENODE2="enode://${BOOTNODE2_PUBKEY}@besu-node-bootnode-2-0.besu-node-bootnode-2.{{ .Release.Namespace }}.svc.cluster.local:30303" ;
             /opt/besu/bin/besu \
@@ -291,15 +291,15 @@ spec:
               --privacy-enabled=true \
               --privacy-url="http://{{ include "besu-node.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local:{{ .Values.privacy.orionConfig.clientport}}" \
               --privacy-public-key-file=/orionsecrets/public.key \
-          {{- end -}} 
-              --bootnodes=${BOOTNODE_ENODE1},${BOOTNODE_ENODE2} 
+          {{- end -}}
+              --bootnodes=${BOOTNODE_ENODE1},${BOOTNODE_ENODE2}
 
         livenessProbe:
           httpGet:
             path: /liveness
             port: 8545
           initialDelaySeconds: 180
-          periodSeconds: 60              
+          periodSeconds: 60
       volumes:
       - name: key
         secret:
@@ -314,8 +314,12 @@ spec:
         configMap:
           name: {{ include "besu-node.fullname" . }}-besu-config
       - name: data
+        {{- if .Values.node.storage.enabled }}
         persistentVolumeClaim:
-          claimName: {{ include "besu-node.fullname" . }}-pvc-besu      
+          claimName: {{ include "besu-node.fullname" . }}-pvc-besu
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
       {{- if .Values.node.permissions.enabled }}
       - name: permissions-config
         configMap:
@@ -329,8 +333,10 @@ spec:
         configMap:
           name: {{ include "besu-node.fullname" . }}-orion-config
       - name: orion-data
+        {{- if .Values.node.storage.enabled }}
         persistentVolumeClaim:
-          claimName: {{ include "besu-node.fullname" . }}-pvc-orion               
+          claimName: {{ include "besu-node.fullname" . }}-pvc-orion
+        {{- else }}
+        emptyDir: {}
+        {{- end }}
       {{- end }}
-
-
