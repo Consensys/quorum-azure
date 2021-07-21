@@ -63,7 +63,7 @@ spec:
   storageClassName: {{ include "quorum-node.fullname" . }}-storage
   resources:
     requests:
-      storage: "{{ .Values.node.storage.quorumConfig.pvcSizeLimit }}"
+      storage: "{{ .Values.node.quorumConfig.storage.pvcSizeLimit }}"
 {{- end }}
 
 ---
