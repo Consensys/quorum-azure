@@ -16,6 +16,10 @@ spec:
         backend:
           serviceName: quorum-node-tx-1
           servicePort: 8545
+      - path: /ws(/|$)(.*)
+        backend:
+          serviceName: quorum-node-tx-1
+          servicePort: 8546
       - path: /graphql(/|$)(.*)
         backend:
           serviceName: quorum-node-tx-1
