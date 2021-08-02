@@ -177,7 +177,8 @@
         "location": "[parameters('location')]",
         "dependsOn": [
           "[resourceId('Microsoft.ManagedIdentity/userAssignedIdentities/', variables('opsManagedIdentity'))]",
-          "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]"
+          "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+          "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnet1Name'))]"
         ],
         "properties": {
           "enableSoftDelete": true,
