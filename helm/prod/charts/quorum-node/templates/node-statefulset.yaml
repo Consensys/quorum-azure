@@ -295,7 +295,7 @@ spec:
             cp {{ .Values.node.quorumConfig.keysPath }}/nodekey {{ .Values.node.quorumConfig.dataDir }}/dd/geth/nodekey
             cp /config/static/static-nodes.json {{ .Values.node.quorumConfig.dataDir }}/dd/geth/static-nodes.json
 
-            BOOTNODE1_IP=$(getent hosts quorum-node-bootnode-1-0.quorum-node-bootnode-1.quorum.svc.cluster.local | awk '{ print $1 }')
+            BOOTNODE1_IP=$(getent hosts quorum-node-bootnode-1-0.quorum-node-bootnode-1.{{ .Release.Namespace }}.svc.cluster.local | awk '{ print $1 }')
             export BOOTNODE1_ENODE="enode://${BOOTNODE1_PUBKEY}@${BOOTNODE1_IP}:30303" ;
 
             geth \
