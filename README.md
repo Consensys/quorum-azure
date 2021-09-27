@@ -1,7 +1,7 @@
 # Quorum Azure
 
 ## Background
-The following is meant to guide you through running Hyperledger Besu or GoQuorum clients in Azure AKS (Kuberentes) in both development and production scenarios. As always you are free to customize the charts to suit your requirements. It is highly recommended to familiarize yourself with AKS (or equivalent Kubernetes infrastructure) before running things in production on Kubernetes. 
+The following is meant to guide you through running Hyperledger Besu or GoQuorum clients in Azure AKS (Kubernetes) in both development and production scenarios. As always you are free to customize the charts to suit your requirements. It is highly recommended to familiarize yourself with AKS (or equivalent Kubernetes infrastructure) before running things in production on Kubernetes. 
 
 It essentially comprises base infrastructure that is used to build the cluster & other resources in Azure via an [ARM template]('./arm/azuredeploy.json'). We also make use some Azure native services and features (tha are are provisioned via a [script]('./scripts/bootstrap.sh')) after the cluster is created. These incluide:
 - [AAD pod identities](https://docs.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity). 
@@ -204,7 +204,7 @@ curl -X POST -H "Content-Type: application/json" --data '{ "query": "{syncing{st
 Once you are familiar with the base setup using the dev charts, please adjust the configuration ie num of nodes, topology etc to suit your requirements. 
 
 Some things are already setup and mereley need your config eg:
-- Alerting has been setup via an Action group but requires either an email address or slack webhook to send the alerts to. There are also basic alerts created for you which will utilise the action group. The list is not exhaustive and you should add alerts based on log queries in Azure Monitor to suit your requirements. Please refer to the [Azure Docs](https://docs.microsoft.com/en-us/azure/azure-monitor/alerts/action-groups-create-resource-manager-template) for more information 
+- Alerting has been setup via an Action group but requires either an email address or slack webhook to send the alerts to. There are also basic alerts created for you which will utilize the action group. The list is not exhaustive and you should add alerts based on log queries in Azure Monitor to suit your requirements. Please refer to the [Azure Docs](https://docs.microsoft.com/en-us/azure/azure-monitor/alerts/action-groups-create-resource-manager-template) for more information 
 
 - Monitoring via Prometheus and Grafana with the Besu dashboards is enabled, but for production use please configure Grafana with your choice of auth mechanism eg OAuth.
 
@@ -213,5 +213,3 @@ Some things are already setup and mereley need your config eg:
 - In the production setup, we do **not** overwrite or delete node keys or the like from KeyVault and the charts are designed to be fail-safe ie if you accidentally delete the deployment and rerun it you will have you existing keys to match any permissions setup that you have. You will need to manually delete anything in vault.
 
 - To extend your nodes and allow other nodes (in a different cluster or outside Azure), you will need to peer your VNet with the other one and ensure that the CIDR blocks don't conflict. Once done the external nodes should be able to communicate with your nodes in AKS
-
-- 
