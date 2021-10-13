@@ -12,7 +12,7 @@ AKS_RESOURCE_GROUP=${1:-rg}
 AKS_CLUSTER_NAME=${2:-cluster}
 AKS_MANAGED_IDENTITY=${3:-identity}
 # besu/quourum
-AKS_NAMESPACE=${4:-besu}
+AKS_NAMESPACE=${4:-quourum}
 
 echo "az get-credentials ..." 
 # if running this on a VM/Function/etc use a managed identity
