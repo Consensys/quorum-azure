@@ -4,10 +4,10 @@ image:
   pullPolicy: Always
   quorum:
     repository: quorumengineering/quorum
-    tag: 21.1.0
+    tag: 21.7.1
   tessera:
     repository: quorumengineering/tessera
-    tag: 21.1.0
+    tag: 21.7.1
   hooks:
     repository: consensys/istanbul-tools
     tag: 'latest'
@@ -74,10 +74,12 @@ node:
     metrics:
       enabled: true
       pprofaddr: "0.0.0.0"
+      pprofport: 9545
     tessera:
       url: "http://127.0.0.1:8888"
       port: 9000
       tpport: 9080
+      q2tport: 9101
       password: ""
 
 nodeSelector: {}

@@ -1,7 +1,7 @@
 # Quorum Azure
 
 ## Background
-The following is meant to guide you through running Hyperledger Besu or GoQuorum clients in Azure AKS (Kuberentes) in both development and production scenarios. As always you are free to customize the charts to suit your requirements. It is highly recommended to familiarize yourself with AKS (or equivalent Kubernetes infrastructure) before running things in production on Kubernetes. 
+The following is meant to guide you through running Hyperledger Besu or GoQuorum clients in Azure AKS (Kubernetes) in both development and production scenarios. As always you are free to customize the charts to suit your requirements. It is highly recommended to familiarize yourself with AKS (or equivalent Kubernetes infrastructure) before running things in production on Kubernetes. 
 
 It essentially comprises base infrastructure that is used to build the cluster & other resources in Azure via an [ARM template]('./arm/azuredeploy.json'). We also make use some Azure native services and features (tha are are provisioned via a [script]('./scripts/bootstrap.sh')) after the cluster is created. These incluide:
 - [AAD pod identities](https://docs.microsoft.com/en-us/azure/aks/use-azure-ad-pod-identity). 
@@ -130,11 +130,8 @@ Change directory to the charts folder ie `/charts/dev` or `/charts/prod`
 ```
 cd helm/dev/  
 # Please do not use this monitoring chart in prod, it needs authentication, pending close of https://github.com/ConsenSys/cakeshop/issues/86 
-helm install monitoring ./charts/quorum-monitoring --namespace quorum
-helm install genesis ./charts/quorum-genesis --namespace quorum --values ./values/genesis-quorum.yml 
-
-# Bootnodes are only used in the **dev** charts setup 
-helm install bootnode-1 ./charts/quorum-node --namespace quorum --values ./values/bootnode.yml
+helm install monitoring ./charts/quorum-monitoring --create-namespace --namespace quorum 
+helm install genesis ./charts/quorum-genesis --create-namespace --namespace quorum --values ./values/genesis-quorum.yml 
 
 helm install validator-1 ./charts/quorum-node --namespace quorum --values ./values/validator.yml
 helm install validator-2 ./charts/quorum-node --namespace quorum --values ./values/validator.yml
@@ -180,13 +177,13 @@ API Calls to either client
 ```bash
 
 # HTTP RPC API:
-curl -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"net_peerCount","params":[],"id":1}' http://<INGRESS_IP>/rpc/
+curl -v -X POST -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' http://<INGRESS_IP>/rpc
 
 # which should return (confirming that the node running the JSON-RPC service has peers):
 {
   "jsonrpc" : "2.0",
   "id" : 1,
-  "result" : "0x4"
+  "result" : "0x4e9"
 }
 
 # HTTP GRAPHQL API:
@@ -204,7 +201,7 @@ curl -X POST -H "Content-Type: application/json" --data '{ "query": "{syncing{st
 Once you are familiar with the base setup using the dev charts, please adjust the configuration ie num of nodes, topology etc to suit your requirements. 
 
 Some things are already setup and mereley need your config eg:
-- Alerting has been setup via an Action group but requires either an email address or slack webhook to send the alerts to. There are also basic alerts created for you which will utilise the action group. The list is not exhaustive and you should add alerts based on log queries in Azure Monitor to suit your requirements. Please refer to the [Azure Docs](https://docs.microsoft.com/en-us/azure/azure-monitor/alerts/action-groups-create-resource-manager-template) for more information 
+- Alerting has been setup via an Action group but requires either an email address or slack webhook to send the alerts to. There are also basic alerts created for you which will utilize the action group. The list is not exhaustive and you should add alerts based on log queries in Azure Monitor to suit your requirements. Please refer to the [Azure Docs](https://docs.microsoft.com/en-us/azure/azure-monitor/alerts/action-groups-create-resource-manager-template) for more information 
 
 - Monitoring via Prometheus and Grafana with the Besu dashboards is enabled, but for production use please configure Grafana with your choice of auth mechanism eg OAuth.
 
@@ -215,3 +212,4 @@ Some things are already setup and mereley need your config eg:
 - To extend your nodes and allow other nodes (in a different cluster or outside Azure), you will need to peer your VNet with the other one and ensure that the CIDR blocks don't conflict. Once done the external nodes should be able to communicate with your nodes in AKS
 
 - 
+
